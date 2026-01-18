@@ -14,8 +14,9 @@
     "documentation",
     "schema",
     "postgresql",
-    "kotlin",
-    "typescript",
+    "mysql",
+    "sqlserver",
+    "sqlite",
     "code-analysis"
   ],
   "skills": ["./skills/"]

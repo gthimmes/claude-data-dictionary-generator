@@ -2,18 +2,26 @@
 name: data-dictionary-generator
 description: Generate comprehensive data dictionaries by analyzing database schemas, migration files, backend code, frontend code, and documentation sources. Use when creating or updating database documentation.
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Task, Bash, WebFetch, mcp__postgres__query
+allowed-tools: Read, Write, Edit, Glob, Grep, Task, Bash, WebFetch, mcp__postgres__query, mcp__mysql__query, mcp__sqlite__query
 ---
 
 # Data Dictionary Generator
 
 A skill that automatically generates comprehensive data dictionaries by analyzing multiple documentation sources across your technology stack. The skill synthesizes information from databases, codebases (backend and frontend), and documentation platforms to create a unified, living reference document for database entities.
 
+## Supported Databases
+
+- **PostgreSQL** - Full support including comments, constraints, indexes
+- **MySQL/MariaDB** - Full support including comments, constraints, indexes
+- **SQL Server** - Full support including extended properties, constraints, indexes
+- **SQLite** - Basic support for schema extraction
+- **Other SQL databases** - Via standard information_schema queries
+
 ## What This Skill Does
 
 When invoked, you (Claude) will:
 
-1. **Set up integrations** - Guide user through MCP connections (PostgreSQL required, Notion optional)
+1. **Set up integrations** - Guide user through MCP connections (database required, Notion optional)
 2. **Gather configuration** - Ask about project structure and output preferences
 3. **Analyze sources** following a priority hierarchy - Extract information from each available source
 4. **Synthesize findings** - Merge information with conflict resolution based on source priority
@@ -26,12 +34,12 @@ When multiple sources provide information about the same table/column, use this 
 ### Tier 1: Database & Schema Evolution (Authoritative)
 **Highest Priority - Direct Schema Truth**
 
-1. **PostgreSQL Database Comments** - Direct `COMMENT ON` statements
+1. **Database Comments/Descriptions** - Direct column and table comments
    - Most authoritative source
    - Lives with the schema
    - Cannot drift from reality
 
-2. **Migration Files** (Flyway/Liquibase) - Schema change history with context
+2. **Migration Files** (Flyway/Liquibase/Alembic/etc.) - Schema change history with context
    - SQL comments in migration files
    - Explains "why" behind changes
    - Temporal context for evolution
@@ -39,16 +47,16 @@ When multiple sources provide information about the same table/column, use this 
 ### Tier 2: Implementation Code (Current Reality)
 **High Priority - What's Actually Implemented**
 
-3. **Backend Entity Code** (Kotlin/Spring Boot)
-   - JPA entity classes and annotations
+3. **Backend Entity Code** (Java/Kotlin/Python/C#/Go/etc.)
+   - ORM entity classes and annotations
    - Repository interfaces and custom queries
    - Service layer business logic
    - Data validation rules
-   - KDoc/JavaDoc comments
+   - Code documentation comments
 
-4. **Frontend Code** (TypeScript/React)
+4. **Frontend Code** (TypeScript/JavaScript/etc.)
    - TypeScript interfaces and types
-   - Zod/Yup validation schemas
+   - Validation schemas (Zod/Yup/etc.)
    - Form field validation rules
    - UI help text and tooltips
    - User-facing perspective
@@ -74,31 +82,61 @@ When multiple sources provide information about the same table/column, use this 
 
 ## Execution Workflow
 
-### Phase 1: PostgreSQL MCP Setup (Required)
+### Phase 1: Database MCP Setup (Required)
 
-Database access via MCP is essential for generating accurate data dictionaries. Start by checking if PostgreSQL MCP is configured.
+Database access via MCP is essential for generating accurate data dictionaries. Start by asking which database the user wants to document.
 
-**Step 1: Check for existing MCP connection**
+**Step 1: Ask about database type**
 
-Try to execute a simple query:
+```
+I'll help you generate a comprehensive data dictionary. First, I need to connect to your database.
+
+Which database system are you using?
+1. PostgreSQL
+2. MySQL / MariaDB
+3. SQL Server
+4. SQLite
+5. Other
+```
+
+**Step 2: Check for existing MCP connection**
+
+Based on the database type, try to execute a simple test query:
+
+For PostgreSQL:
 ```sql
 SELECT current_database(), current_user, version();
 ```
 
-**If the query succeeds:** PostgreSQL MCP is already configured. Proceed to Phase 2.
+For MySQL:
+```sql
+SELECT DATABASE(), USER(), VERSION();
+```
+
+For SQL Server:
+```sql
+SELECT DB_NAME(), SUSER_NAME(), @@VERSION;
+```
+
+For SQLite:
+```sql
+SELECT sqlite_version();
+```
+
+**If the query succeeds:** Database MCP is already configured. Proceed to Phase 2.
 
 **If the query fails or MCP is not available:** Guide the user through setup.
 
-**Step 2: Guide MCP Setup**
+**Step 3: Guide MCP Setup**
 
 Tell the user:
 
 ```
-To generate an accurate data dictionary, I need direct access to your PostgreSQL database via MCP.
+To generate an accurate data dictionary, I need direct access to your database via MCP.
 
 Let me help you set this up. I'll need:
 1. Database host (e.g., localhost, db.example.com)
-2. Port (default: 5432)
+2. Port (default varies by database)
 3. Database name
 4. Username
 5. Password
@@ -106,22 +144,11 @@ Let me help you set this up. I'll need:
 Which database would you like to connect to?
 ```
 
-**Step 3: Gather connection details**
-
-Ask for:
-- Host and port
-- Database name
-- Username
-- Password handling preference (direct in config vs environment variable)
-
 **Step 4: Configure MCP**
 
-Once you have the details, help the user add the MCP server configuration.
+Once you have the details, help the user add the MCP server configuration to `~/.claude.json`.
 
-**Option A: Direct configuration (simpler)**
-
-Edit the user's `~/.claude.json` file to add the MCP server to their project:
-
+**PostgreSQL Configuration:**
 ```json
 "mcpServers": {
   "postgres": {
@@ -135,60 +162,82 @@ Edit the user's `~/.claude.json` file to add the MCP server to their project:
 }
 ```
 
-**Option B: Environment variable (more secure)**
+**MySQL Configuration:**
+```json
+"mcpServers": {
+  "mysql": {
+    "command": "npx",
+    "args": [
+      "-y",
+      "@modelcontextprotocol/server-mysql",
+      "mysql://USERNAME:PASSWORD@HOST:PORT/DATABASE"
+    ]
+  }
+}
+```
 
-1. Tell user to set environment variable:
-   ```bash
-   export POSTGRES_URL="postgresql://username:password@host:port/database"
-   ```
+**SQLite Configuration:**
+```json
+"mcpServers": {
+  "sqlite": {
+    "command": "npx",
+    "args": [
+      "-y",
+      "@modelcontextprotocol/server-sqlite",
+      "/path/to/database.db"
+    ]
+  }
+}
+```
 
-2. Configure MCP to use the variable:
-   ```json
-   "mcpServers": {
-     "postgres": {
-       "command": "npx",
-       "args": [
-         "-y",
-         "@modelcontextprotocol/server-postgres"
-       ],
-       "env": {
-         "DATABASE_URL": "${POSTGRES_URL}"
-       }
-     }
-   }
-   ```
+**SQL Server Configuration:**
+```json
+"mcpServers": {
+  "mssql": {
+    "command": "npx",
+    "args": [
+      "-y",
+      "@modelcontextprotocol/server-mssql",
+      "Server=HOST;Database=DATABASE;User Id=USERNAME;Password=PASSWORD;"
+    ]
+  }
+}
+```
+
+**Environment Variable Option (more secure):**
+
+For any database, recommend using environment variables:
+```json
+"mcpServers": {
+  "postgres": {
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-postgres"],
+    "env": {
+      "DATABASE_URL": "${DATABASE_URL}"
+    }
+  }
+}
+```
 
 **Step 5: Restart Claude Code**
 
 Tell the user:
 ```
-I've added the PostgreSQL MCP configuration. Please:
+I've added the database MCP configuration. Please:
 1. Update the password in ~/.claude.json if needed
 2. Restart Claude Code to load the MCP server
 3. Come back and I'll verify the connection
 ```
 
-**Step 6: Verify connection**
+**Step 6: Verify connection and list schemas**
 
-After restart, test the connection:
-```sql
-SELECT current_database(), current_user, version();
-```
-
-Then list available schemas:
-```sql
-SELECT schema_name FROM information_schema.schemata
-WHERE schema_name NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
-ORDER BY schema_name;
-```
-
-Ask the user which schema contains their application tables.
+After restart, test the connection and list available schemas/databases.
 
 ---
 
 ### Phase 2: Notion MCP Setup (Optional)
 
-After PostgreSQL is configured, offer Notion integration for additional documentation context.
+After database is configured, offer Notion integration for additional documentation context.
 
 **Step 1: Ask about Notion**
 
@@ -243,18 +292,6 @@ Add to the user's MCP configuration:
 }
 ```
 
-**Step 4: Identify relevant pages**
-
-After setup, ask:
-```
-Which Notion pages contain your database documentation?
-
-Please provide:
-1. Page URLs or IDs for data model docs
-2. Any specific databases or pages with table descriptions
-3. ADR pages related to schema decisions
-```
-
 **If no Notion:** Proceed without it, noting that Tier 4 documentation will be unavailable.
 
 ---
@@ -267,20 +304,20 @@ Now gather information about the codebase:
 Now let's configure the code analysis. Please provide:
 
 1. **Backend code path** - Where is your backend code?
-   (e.g., ./backend/src/main/kotlin or ./src/main/java)
+   (e.g., ./backend/src/main/kotlin, ./src, ./api)
 
 2. **Frontend code path** - Where is your frontend code?
-   (e.g., ./frontend/src or ./web/src)
+   (e.g., ./frontend/src, ./web/src, ./client)
 
 3. **Migration files path** - Where are your database migrations?
-   (e.g., ./src/main/resources/db/migration for Flyway)
+   (e.g., ./migrations, ./db/migrate, ./src/main/resources/db/migration)
 
 4. **Schema to analyze** - Which database schema(s)?
-   (e.g., "public", "dev", or specific schema name)
+   (e.g., "public", "dbo", or specific schema name)
 
 5. **Scope** - Which tables?
    - All tables in the schema
-   - Specific domain (e.g., "client", "billing")
+   - Specific domain (e.g., "user", "billing")
    - List of specific tables
 
 6. **Output format** - Markdown, YAML, JSON, or HTML?
@@ -291,9 +328,11 @@ Now let's configure the code analysis. Please provide:
 
 ---
 
-### Phase 4: PostgreSQL Schema Analysis
+### Phase 4: Database Schema Analysis
 
-Execute these queries via MCP to extract schema information:
+Execute queries appropriate for the database type to extract schema information.
+
+#### PostgreSQL Queries
 
 **Extract table comments:**
 ```sql
@@ -327,7 +366,90 @@ WHERE n.nspname = '{schema_name}'
 ORDER BY c.relname, a.attnum;
 ```
 
-**Extract constraints:**
+#### MySQL Queries
+
+**Extract table comments:**
+```sql
+SELECT
+    TABLE_SCHEMA AS schema_name,
+    TABLE_NAME AS table_name,
+    TABLE_COMMENT AS table_comment
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = '{schema_name}';
+```
+
+**Extract column details with comments:**
+```sql
+SELECT
+    TABLE_NAME AS table_name,
+    COLUMN_NAME AS column_name,
+    COLUMN_TYPE AS data_type,
+    IS_NULLABLE = 'NO' AS not_null,
+    COLUMN_DEFAULT AS default_value,
+    COLUMN_COMMENT AS column_comment
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = '{schema_name}'
+ORDER BY TABLE_NAME, ORDINAL_POSITION;
+```
+
+#### SQL Server Queries
+
+**Extract table comments (extended properties):**
+```sql
+SELECT
+    s.name AS schema_name,
+    t.name AS table_name,
+    ep.value AS table_comment
+FROM sys.tables t
+JOIN sys.schemas s ON t.schema_id = s.schema_id
+LEFT JOIN sys.extended_properties ep ON ep.major_id = t.object_id
+    AND ep.minor_id = 0
+    AND ep.name = 'MS_Description'
+WHERE s.name = '{schema_name}';
+```
+
+**Extract column details with comments:**
+```sql
+SELECT
+    t.name AS table_name,
+    c.name AS column_name,
+    ty.name + CASE
+        WHEN ty.name IN ('varchar', 'nvarchar', 'char', 'nchar')
+        THEN '(' + CAST(c.max_length AS VARCHAR) + ')'
+        ELSE ''
+    END AS data_type,
+    ~c.is_nullable AS not_null,
+    dc.definition AS default_value,
+    ep.value AS column_comment
+FROM sys.columns c
+JOIN sys.tables t ON c.object_id = t.object_id
+JOIN sys.schemas s ON t.schema_id = s.schema_id
+JOIN sys.types ty ON c.user_type_id = ty.user_type_id
+LEFT JOIN sys.default_constraints dc ON c.default_object_id = dc.object_id
+LEFT JOIN sys.extended_properties ep ON ep.major_id = c.object_id
+    AND ep.minor_id = c.column_id
+    AND ep.name = 'MS_Description'
+WHERE s.name = '{schema_name}'
+ORDER BY t.name, c.column_id;
+```
+
+#### Standard Information Schema (Fallback)
+
+For any SQL database supporting information_schema:
+
+```sql
+SELECT
+    TABLE_NAME AS table_name,
+    COLUMN_NAME AS column_name,
+    DATA_TYPE AS data_type,
+    IS_NULLABLE = 'NO' AS not_null,
+    COLUMN_DEFAULT AS default_value
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = '{schema_name}'
+ORDER BY TABLE_NAME, ORDINAL_POSITION;
+```
+
+**Extract constraints (works across most databases):**
 ```sql
 SELECT
     tc.table_name,
@@ -335,33 +457,33 @@ SELECT
     tc.constraint_type,
     kcu.column_name,
     ccu.table_name AS foreign_table_name,
-    ccu.column_name AS foreign_column_name,
-    rc.delete_rule,
-    rc.update_rule
+    ccu.column_name AS foreign_column_name
 FROM information_schema.table_constraints tc
 LEFT JOIN information_schema.key_column_usage kcu
     ON tc.constraint_name = kcu.constraint_name
     AND tc.table_schema = kcu.table_schema
 LEFT JOIN information_schema.constraint_column_usage ccu
     ON ccu.constraint_name = tc.constraint_name
-LEFT JOIN information_schema.referential_constraints rc
-    ON rc.constraint_name = tc.constraint_name
 WHERE tc.table_schema = '{schema_name}';
-```
-
-**Extract indexes:**
-```sql
-SELECT tablename, indexname, indexdef
-FROM pg_indexes
-WHERE schemaname = '{schema_name}'
-ORDER BY tablename, indexname;
 ```
 
 ---
 
 ### Phase 5: Migration File Analysis
 
-Scan the migration directory for Flyway (`V{version}__{description}.sql`) or Liquibase files.
+Scan the migration directory for migration files based on the framework used.
+
+**Common patterns to search for:**
+```
+**/db/migration/*.sql          # Flyway
+**/flyway/*.sql                # Flyway
+**/liquibase/**/*.sql          # Liquibase
+**/liquibase/**/*.xml          # Liquibase XML
+**/migrations/*.sql            # Generic
+**/migrations/*.py             # Alembic (Python)
+**/db/migrate/*.rb             # Rails
+**/prisma/migrations/**/*.sql  # Prisma
+```
 
 **For each migration file, extract:**
 - Version number and timestamp
@@ -371,65 +493,47 @@ Scan the migration directory for Flyway (`V{version}__{description}.sql`) or Liq
 - Related JIRA tickets from filename or comments (e.g., `ART-1234`)
 - Author information if present
 
-**Pattern to look for:**
-```sql
-/*
- * [Description of change]
- *
- * Related: [JIRA-TICKET]
- * Author: [author-name]
- * Date: [date]
- *
- * Business Context:
- * [Why this change was made]
- */
-```
-
-Use Glob to find migration files:
-```
-**/db/migration/*.sql
-**/flyway/*.sql
-**/liquibase/**/*.sql
-```
-
 ---
 
 ### Phase 6: Backend Code Analysis
 
-**Find entity/model classes:**
+**Find entity/model classes based on the framework:**
 
-For JPA/Hibernate:
+For JPA/Hibernate (Java/Kotlin):
 ```
 @Entity
 @Table
 ```
 
-For JDBC-based DAOs (custom pattern):
+For Django (Python):
 ```
-TABLE_NAME =
-CrudDao
-RowMapper
+class.*Model
+```
+
+For SQLAlchemy (Python):
+```
+Base
+declarative_base
+```
+
+For Entity Framework (C#):
+```
+DbContext
+DbSet
+```
+
+For GORM (Go):
+```
+gorm.Model
 ```
 
 **For each entity, extract:**
-- Class-level documentation (KDoc/JavaDoc)
+- Class-level documentation
 - Table name mapping
 - Column annotations and types
-- Validation annotations (`@NotNull`, `@NotBlank`, `@Size`, etc.)
-- Relationship annotations
+- Validation annotations/decorators
+- Relationship mappings
 - Custom validation methods
-
-**Find Repository/DAO interfaces:**
-```
-Repository
-JpaRepository
-CrudDao
-```
-
-**Extract from repositories:**
-- Custom query methods
-- `@Query` annotations
-- Method documentation
 
 ---
 
@@ -442,12 +546,12 @@ export type
 ```
 
 **For each interface, extract:**
-- TSDoc comments
+- Documentation comments
 - Property names and types
 - Optional markers
 - Property-level comments
 
-**Find validation schemas (Zod/Yup):**
+**Find validation schemas (Zod/Yup/etc.):**
 ```
 z.object
 yup.object
@@ -497,10 +601,12 @@ For each table/entity:
 data_dictionary:
   generated_at: "{timestamp}"
   database: "{database_name}"
+  database_type: "{postgresql|mysql|sqlserver|sqlite}"
   schema: "{schema_name}"
 
   sources_analyzed:
-    - type: "postgresql_schema"
+    - type: "database_schema"
+      database_type: "{type}"
       status: "connected"
     - type: "migration_files"
       path: "{path}"
@@ -523,7 +629,7 @@ data_dictionary:
           type: "{data_type}"
           nullable: {true/false}
           default: "{default_value}"
-          db_comment: "{from COMMENT ON}"
+          db_comment: "{from database comment}"
           description: "{merged description}"
 
           validations:
@@ -571,98 +677,12 @@ data_dictionary:
 
 ---
 
-## Example Session
-
-```
-User: /data-dictionary-generator
-
-Claude: I'll help you generate a comprehensive data dictionary. First, let me check if you have database access configured.
-
-[Attempts MCP query - fails]
-
-To generate an accurate data dictionary, I need direct access to your PostgreSQL database via MCP.
-
-Let me help you set this up. I'll need:
-1. Database host (e.g., localhost)
-2. Port (default: 5432)
-3. Database name
-4. Username
-5. Password handling preference
-
-What database would you like to connect to?
-
-User: localhost:5432, database is "myapp", user is "dev_user"
-
-Claude: I'll add the PostgreSQL MCP configuration to your Claude settings.
-
-[Edits ~/.claude.json to add MCP config]
-
-Done! Please:
-1. Edit ~/.claude.json to add your password
-2. Restart Claude Code
-3. Come back and say "ready"
-
-User: ready
-
-Claude: [Tests connection - succeeds]
-
-Connected to myapp database as dev_user. Found schemas: public, audit.
-
-Would you like to include Notion documentation? This can provide additional business context for your tables.
-
-User: Yes, I have data model docs in Notion
-
-Claude: Great! To connect to Notion:
-
-1. Go to https://www.notion.so/my-integrations
-2. Create a new integration
-3. Share your data model pages with it
-4. Give me the integration token
-
-User: [provides token]
-
-Claude: [Configures Notion MCP]
-
-Now let's configure the code analysis:
-
-1. Backend code path?
-2. Frontend code path?
-3. Migration files path?
-4. Which schema to analyze?
-5. All tables or specific domain?
-6. Output format?
-7. Output location?
-
-User:
-1. ./backend/src/main/kotlin
-2. ./frontend/src
-3. ./backend/src/main/resources/db/migration
-4. public schema
-5. Start with the "user" and "account" tables
-6. YAML
-7. ./docs/data-dictionary.yaml
-
-Claude: [Executes analysis across all sources]
-
-Generated data dictionary for 2 tables:
-- user: 15 columns, 8 validation rules
-- account: 22 columns, 12 validation rules
-
-Saved to ./docs/data-dictionary.yaml
-
-Key findings:
-- user.email has different max lengths in DB (255) vs frontend validation (100)
-- account.status lacks a database comment - consider adding one
-- Found ADR in Notion explaining the account hierarchy design
-```
-
----
-
 ## Key Principles
 
 1. **MCP is essential** - Guide users through setup; don't skip database access
-2. **Prioritize authoritative sources** - Database comments and migration files are truth
-3. **Preserve business context** - The "why" is as important as the "what"
-4. **Flag discrepancies** - When sources conflict, note it for review
-5. **Be comprehensive** - Include all relevant details from each source
-6. **Provide traceability** - Always cite source file and line numbers
+2. **Database-agnostic** - Adapt queries and approach to the specific database type
+3. **Prioritize authoritative sources** - Database comments and migration files are truth
+4. **Preserve business context** - The "why" is as important as the "what"
+5. **Flag discrepancies** - When sources conflict, note it for review
+6. **Be comprehensive** - Include all relevant details from each source
+7. **Provide traceability** - Always cite source file and line numbers

@@ -2,6 +2,14 @@
 
 Generate comprehensive data dictionaries by analyzing database schemas, code, and documentation sources.
 
+## Supported Databases
+
+- **PostgreSQL** - Full support including comments, constraints, indexes
+- **MySQL/MariaDB** - Full support including comments, constraints, indexes
+- **SQL Server** - Full support including extended properties, constraints, indexes
+- **SQLite** - Basic support for schema extraction
+- **Other SQL databases** - Via standard information_schema queries
+
 ## What This Is
 
 This is a **Claude Code skill** - a plugin that extends Claude Code with specialized capabilities for generating database data dictionaries. When installed, you can invoke it with `/data-dictionary-generator` or Claude will automatically use it when you're discussing database documentation.
@@ -74,17 +82,19 @@ For each table/entity:
 ## Requirements
 
 - **Claude Code** with plugin support
-- **PostgreSQL MCP server** (required) - The skill will guide you through setup
+- **Database MCP server** (required) - The skill will guide you through setup for your specific database
 - **Notion MCP server** (optional) - For additional documentation context
 - Access to your codebase (backend and/or frontend)
 
 ### MCP Setup
 
-When you first run the skill, it will check for database connectivity and walk you through setting up the PostgreSQL MCP server if needed. This includes:
+When you first run the skill, it will:
 
-1. Gathering your database connection details
-2. Configuring `~/.claude.json` with the MCP server
-3. Verifying the connection works
+1. Ask which database type you're using (PostgreSQL, MySQL, SQL Server, SQLite)
+2. Check for existing database connectivity
+3. Walk you through setting up the appropriate MCP server if needed
+4. Configure `~/.claude.json` with the MCP server
+5. Verify the connection works
 
 Optionally, you can also configure Notion integration for richer business context in your data dictionaries.
 
