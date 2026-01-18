@@ -1,0 +1,22 @@
+{
+  "name": "claude-data-dictionary-generator",
+  "version": "1.0.0",
+  "description": "Generate comprehensive data dictionaries by analyzing database schemas, code, and documentation sources",
+  "author": {
+    "name": "gthimmes"
+  },
+  "homepage": "https://github.com/gthimmes/claude-data-dictionary-generator",
+  "repository": "https://github.com/gthimmes/claude-data-dictionary-generator",
+  "license": "MIT",
+  "keywords": [
+    "data-dictionary",
+    "database",
+    "documentation",
+    "schema",
+    "postgresql",
+    "kotlin",
+    "typescript",
+    "code-analysis"
+  ],
+  "skills": ["./skills/"]
+}

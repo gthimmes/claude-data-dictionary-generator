@@ -1,0 +1,39 @@
+{
+  "name": "claude-data-dictionary-generator",
+  "owner": {
+    "name": "gthimmes"
+  },
+  "metadata": {
+    "description": "Generate comprehensive data dictionaries from database schemas, code, and documentation",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "claude-data-dictionary-generator",
+      "source": {
+        "source": "github",
+        "repo": "gthimmes/claude-data-dictionary-generator"
+      },
+      "description": "A Claude Code skill that automatically generates comprehensive data dictionaries by analyzing PostgreSQL schemas, migration files, backend code (Kotlin/Spring Boot), frontend code (TypeScript/React), and documentation platforms. Synthesizes information with a tiered priority system to create unified, living reference documents for database entities.",
+      "version": "1.0.0",
+      "author": {
+        "name": "gthimmes"
+      },
+      "homepage": "https://github.com/gthimmes/claude-data-dictionary-generator",
+      "repository": "https://github.com/gthimmes/claude-data-dictionary-generator",
+      "license": "MIT",
+      "keywords": [
+        "data-dictionary",
+        "database",
+        "documentation",
+        "schema",
+        "postgresql",
+        "kotlin",
+        "typescript",
+        "code-analysis",
+        "spring-boot",
+        "react"
+      ]
+    }
+  ]
+}
