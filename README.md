@@ -19,13 +19,13 @@ This is a **Claude Code skill** - a plugin that extends Claude Code with special
 ### Step 1: Add the Marketplace
 
 ```bash
-/plugin marketplace add gthimmes/claude-data-dictionary-generator
+/plugin marketplace add gthimmes/claude-marketplace
 ```
 
 ### Step 2: Install the Plugin
 
 ```bash
-/plugin install claude-data-dictionary-generator
+/plugin install data-dictionary-generator
 ```
 
 > **Note**: If the slash command doesn't work immediately after installation, restart Claude Code to refresh the skill registry.
